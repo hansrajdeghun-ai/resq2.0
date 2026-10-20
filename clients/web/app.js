@@ -8,25 +8,32 @@ async function api(path, opts) {
 
 const PHONES = {};
 document.querySelectorAll(".phone").forEach((p) => {
-  PHONES[p.dataset.id] = { el: p, role: p.dataset.role, lastSeq: 0, firstPoll: true };
+  PHONES[p.dataset.id] = { el: p, role: p.dataset.role, lastSeq: 0, firstPoll: true, seen: new Set() };
   const note = document.createElement("div");
   note.className = "wa-note"; note.textContent = "WhatsApp screen — mock for the demo";
   p.querySelector(".chat").before(note);
 });
 
 // poll every phone's own inbox so the demo reflects chats done on the dedicated pages too
+let pollingAll = false;
 async function pollAll() {
+  if (pollingAll) return;                 // lock: no overlapping polls (no dupes)
+  pollingAll = true;
+  try {
   for (const [id, phone] of Object.entries(PHONES)) {
     try {
       const { messages } = await api(`/api/inbox/${encodeURIComponent(id)}?after=${phone.lastSeq}`);
       messages.forEach((m) => {
         phone.lastSeq = m.seq;
+        if (phone.seen.has(m.seq)) return;                   // already rendered — never twice
+        phone.seen.add(m.seq);
         if (!phone.firstPoll && m.role === "self") return;   // already echoed
         bubble(id, m.text, m.role === "self" ? "out" : "in", m.buttons);
       });
       phone.firstPoll = false;
     } catch {}
   }
+  } finally { pollingAll = false; }
 }
 function showTyping(phoneId) {
   const chat = PHONES[phoneId].el.querySelector(".chat");
@@ -133,7 +140,7 @@ document.getElementById("reset").onclick = async () => {
   if (!confirm("Wipe all jobs/events and re-seed?")) return;
   await api("/api/reset", { method: "POST" });
   document.querySelectorAll(".chat").forEach((c) => (c.innerHTML = ""));
-  Object.values(PHONES).forEach((p) => { p.lastSeq = 0; p.firstPoll = true; });
+  Object.values(PHONES).forEach((p) => { p.lastSeq = 0; p.firstPoll = true; p.seen = new Set(); });
   pollAll(); refreshRail();
 };
 

@@ -88,17 +88,22 @@ async function send(payload) {
   typing.remove();
   await pollInbox();
 }
+let polling = false;
+const seen = new Set();
 async function pollInbox() {
-  if (!persona) return;
+  if (!persona || polling) return;                   // lock: no overlapping polls (no dupes)
+  polling = true;
   try {
     const { messages } = await api(`/api/inbox/${encodeURIComponent(persona.id)}?after=${lastSeq}`);
     messages.forEach((m) => {
       lastSeq = m.seq;
+      if (seen.has(m.seq)) return;                    // already rendered — never twice
+      seen.add(m.seq);
       if (!firstPoll && m.role === "self") return;   // already echoed optimistically
       bubble(m.text, m.role === "self" ? "out" : "in", m.buttons);
     });
     firstPoll = false;
-  } catch {}
+  } catch {} finally { polling = false; }
 }
 // open chat and send a message (used by tiles)
 function chatSend(payload) { showView("chat"); send(payload); }
