@@ -120,6 +120,51 @@ async def test_not_yet_opens_free_revisit(session):
     assert E.REOPENED.value in await _types(session)
 
 
+async def test_payment_fails_twice_hands_to_desk(session):
+    ids = await seed_demo(session); await session.commit()
+    sim = Simulator(session)
+    job = await _onsite(session, sim, ids)
+    await sim.send(Role.FIELD, ids["technician"], button_id=f"payment_failed:{job}")
+    out = await sim.send(Role.FIELD, ids["technician"], button_id=f"payment_failed:{job}")
+    assert any("resQ desk" in m.text for m in out)
+    assert E.HANDED_TO_PERSON.value in await _types(session)
+
+
+async def test_site_not_ready_offers_new_slots(session):
+    ids = await seed_demo(session); await session.commit()
+    sim = Simulator(session)
+    job = await _onsite(session, sim, ids)
+    out = await sim.send(Role.FIELD, ids["technician"], button_id=f"site_not_ready:{job}",
+                         proof_link="https://capture/x")
+    assert any(m.role == Role.CUSTOMER and m.buttons for m in out)
+    assert E.SITE_NOT_READY.value in await _types(session)
+
+
+async def test_doa_rejected_escalates_to_desk(session):
+    await seed_demo(session); await session.commit()
+    sim = Simulator(session)
+    await sim.send(Role.CUSTOMER, "cust-sharma", button_id="report_doa:SN-AC-4471")
+    job = (await session.scalars(select(Job))).first()
+    await sim.send(Role.FIELD, "T-ravi", button_id=f"doa_check:{job.id}", **PROOF)
+    await sim.send(Role.AREA, "area-andheri", button_id=f"doa_reject:{job.id}")
+    t = await _types(session)
+    assert E.ESCALATED.value in t and E.HANDED_TO_PERSON.value in t
+
+
+async def test_waiting_confirm_timer_reminds(session):
+    from app.timers import service as T
+    ids = await seed_demo(session); await session.commit()
+    sim = Simulator(session)
+    job = await _onsite(session, sim, ids)
+    await sim.send(Role.FIELD, ids["technician"], button_id=f"serial:{job}:SN-AC-4471")
+    await sim.send(Role.FIELD, ids["technician"], button_id=f"work_done:{job}", **PROOF)
+    future = datetime.now(timezone.utc) + timedelta(hours=25)
+    reminded = await T.sweep_waiting_confirm(session, now=future)
+    await session.commit()
+    assert job in reminded
+    assert E.REMINDER_SENT.value in await _types(session)
+
+
 async def test_no_payout_before_cooling(session):
     ids = await seed_demo(session); await session.commit()
     sim = Simulator(session)

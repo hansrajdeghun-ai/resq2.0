@@ -105,8 +105,44 @@ async def sweep_not_started(session: AsyncSession, now: datetime | None = None) 
     return alerted
 
 
+async def sweep_waiting_confirm(
+    session: AsyncSession, now: datetime | None = None, max_age=timedelta(hours=24)
+) -> list[str]:
+    """Work done but the customer hasn't confirmed in 24h -> reminder (then SMS/IVR)."""
+    now = now or _now()
+    reminded: list[str] = []
+    jobs = (await session.scalars(
+        select(Job).where(Job.state == JobState.WORK_DONE.value))).all()
+    for job in jobs:
+        if H.aware(job.updated_at) and now - H.aware(job.updated_at) >= max_age:
+            await log.append(session, E.REMINDER_SENT, actor="timer", job_id=job.id,
+                             payload={"reason": "confirm your service"})
+            reminded.append(job.id)
+    return reminded
+
+
+async def sweep_brand_tickets(
+    session: AsyncSession, now: datetime | None = None, max_age=timedelta(hours=4)
+) -> list[str]:
+    """Brand repairs with no update in 4h -> nudge the brand / alert the area manager."""
+    from app.monitoring.service import raise_alert
+
+    now = now or _now()
+    flagged: list[str] = []
+    jobs = (await session.scalars(
+        select(Job).where(Job.state == JobState.WITH_BRAND.value))).all()
+    for job in jobs:
+        if H.aware(job.updated_at) and now - H.aware(job.updated_at) >= max_age:
+            await raise_alert(session, job.id, cause="brand_ticket_stale",
+                              text=f"{job.id}: brand has not updated in 4h", action="nudge")
+            flagged.append(job.id)
+    return flagged
+
+
 ALL_SWEEPS = {
     "cooling": sweep_cooling,
     "owner_no_reply": sweep_owner_no_reply,
     "not_started": sweep_not_started,
+    "waiting_confirm": sweep_waiting_confirm,
+    "brand_tickets": sweep_brand_tickets,
 }
