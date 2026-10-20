@@ -93,6 +93,34 @@ async def owned_machines(session, customer_id: str) -> list:
     return [m for m in rows if not m.replaced_by_serial]
 
 
+# product words a customer might name (incl. ones they may NOT own)
+PRODUCT_WORDS = [
+    ("air condition", "AC"), ("a/c", "AC"), (" ac", "AC"), ("ac ", "AC"),
+    ("television", "TV"), (" tv", "TV"), ("tv ", "TV"),
+    ("washing machine", "washing machine"), ("washer", "washing machine"), ("washing", "washing machine"),
+    ("refrigerator", "refrigerator"), ("fridge", "refrigerator"),
+    ("water purifier", "water purifier"), ("purifier", "water purifier"),
+    ("air cooler", "air cooler"), ("cooler", "air cooler"),
+    ("microwave", "microwave"), ("dishwasher", "dishwasher"), ("chimney", "chimney"),
+    ("laptop", "laptop"), ("computer", "computer"), ("desktop", "computer"),
+    ("mobile", "phone"), ("phone", "phone"), ("tablet", "tablet"),
+    ("speaker", "speaker"), ("soundbar", "soundbar"), ("earbud", "earbuds"),
+    ("smartwatch", "watch"), ("watch", "watch"), ("geyser", "geyser"),
+]
+
+
+def mentioned_product(text: str | None) -> str | None:
+    """A product label the customer named (even one they don't own), e.g. 'computer'."""
+    if not text:
+        return None
+    t = f" {text.lower()} "
+    best = None
+    for word, label in PRODUCT_WORDS:
+        if word.strip() and word in t and (best is None or len(word) > best[0]):
+            best = (len(word), label)
+    return best[1] if best else None
+
+
 def match_category(machines: list, text: str | None):
     """If the customer named a category they own ('my fridge'), return that machine."""
     if not text:

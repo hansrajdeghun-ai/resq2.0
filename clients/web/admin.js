@@ -1,6 +1,19 @@
 // Admin product: Overview · People (list + onboard per role) · Rate card & routing.
 const LIST_FIELDS = { pincodes: 1, authority: 1, skills: 1 };
-let peopleSub = "owner", routingSub = "keywords";
+let peopleSub = "all", routingSub = "keywords";
+
+const PEOPLE_FILTERS = [["all", "All"], ["owner", "Service owners"], ["field", "Technicians"],
+                        ["area", "Area managers"], ["customer", "Customers"]];
+const ROUTING_FILTERS = [["keywords", "Intent keywords"], ["self_check", "Self-check"],
+                         ["likely_fault", "Pre-diagnosis"]];
+
+function renderFilterBar(elId, filters, current, onPick) {
+  const bar = document.getElementById(elId);
+  if (!bar) return;
+  bar.innerHTML = filters.map(([k, l]) =>
+    `<button class="fchip ${k === current ? "active" : ""}" data-f="${k}">${l}</button>`).join("");
+  bar.querySelectorAll(".fchip").forEach((b) => (b.onclick = () => onPick(b.dataset.f)));
+}
 
 // per-role onboard form definition
 const ONBOARD = {
@@ -19,33 +32,27 @@ const ONBOARD = {
 const ROLE_ORDER = ["owner", "field", "area", "customer"];
 
 // ─── section + sub nav ─────────────────────────────────────────────────────────
-// highlight the active sub item in a section's subnav
-function markSub(section, sub) {
-  const nav = document.querySelector(`.subnav[data-for="${section}"]`);
-  if (nav) nav.querySelectorAll("a").forEach((x) => x.classList.toggle("active", x.dataset.sub === sub));
-}
 function showSection(name) {
   document.querySelectorAll(".section").forEach((s) => s.classList.toggle("active", s.id === "sec-" + name));
   document.querySelectorAll("#sidenav a[data-section]").forEach((a) =>
     a.classList.toggle("active", a.dataset.section === name));
   if (name === "overview") loadOverview();
-  if (name === "people") { peopleSub = "owner"; markSub("people", peopleSub); loadPeople(); }
+  if (name === "people") { drawPeopleFilter(); loadPeople(); }
   if (name === "ratecard") loadRateCard();
-  if (name === "routing") { routingSub = "keywords"; markSub("routing", routingSub); loadRouting(); }
+  if (name === "routing") { drawRoutingFilter(); loadRouting(); }
   location.hash = name;
 }
 document.querySelectorAll("#sidenav a[data-section]").forEach((a) =>
   (a.onclick = () => showSection(a.dataset.section)));
-document.querySelectorAll(".subnav").forEach((sub) =>
-  sub.querySelectorAll("a[data-sub]").forEach((a) => (a.onclick = async () => {
-    const parent = sub.dataset.for;
-    if (!document.getElementById("sec-" + parent).classList.contains("active")) {
-      showSection(parent); await new Promise((r) => setTimeout(r, 60));
-    }
-    markSub(parent, a.dataset.sub);
-    if (parent === "people") { peopleSub = a.dataset.sub; applyPeopleFilter(); }
-    if (parent === "routing") { routingSub = a.dataset.sub; applyRoutingFilter(); }
-  })));
+
+function drawPeopleFilter() {
+  renderFilterBar("people-filter", PEOPLE_FILTERS, peopleSub,
+                  (f) => { peopleSub = f; drawPeopleFilter(); applyPeopleFilter(); });
+}
+function drawRoutingFilter() {
+  renderFilterBar("routing-filter", ROUTING_FILTERS, routingSub,
+                  (f) => { routingSub = f; drawRoutingFilter(); applyRoutingFilter(); });
+}
 
 function applyPeopleFilter() {
   document.querySelectorAll("#people [data-group]").forEach((el) =>

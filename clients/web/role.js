@@ -145,13 +145,16 @@ async function renderPanel(name) {
   } else if (name === "pos") {
     panel.innerHTML = `<div class="card" style="max-width:460px">
       <label class="pos-l">Customer id<input class="cell" id="pos-cust" value="cust-sharma"></label>
-      <label class="pos-l">Serial<input class="cell" id="pos-serial" value="SN-NEW-9001"></label>
+      <label class="pos-l">Serial / IMEI<input class="cell" id="pos-serial" value="SN-NEW-9001"></label>
+      <label class="pos-l">Product / model<input class="cell" id="pos-model" value="Samsung 1.5T Split AC"></label>
       <label class="pos-l">Category<input class="cell" id="pos-cat" value="AC"></label>
       <button class="btn primary" id="pos-send" style="margin-top:12px">Send WhatsApp opt-in</button>
       <div class="muted" id="pos-out" style="margin-top:8px"></div></div>`;
     panel.querySelector("#pos-send").onclick = () => {
-      const c = panel.querySelector("#pos-cust").value.trim(), s = panel.querySelector("#pos-serial").value.trim(), cat = panel.querySelector("#pos-cat").value.trim() || "AC";
-      send({ button_id: `send_optin:${c}:${s}:${cat}`, label: `Opt-in sent · ${s}` });
+      const c = panel.querySelector("#pos-cust").value.trim(), s = panel.querySelector("#pos-serial").value.trim(),
+        cat = panel.querySelector("#pos-cat").value.trim() || "AC",
+        model = panel.querySelector("#pos-model").value.trim();
+      send({ button_id: `send_optin:${c}:${s}:${cat}:${model}`, label: `Opt-in sent · ${model || s}` });
       panel.querySelector("#pos-out").textContent = `Opt-in sent for ${s}. The customer can accept on their phone.`;
     };
   } else if (name === "exceptions") {

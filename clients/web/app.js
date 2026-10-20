@@ -8,11 +8,21 @@ async function api(path, opts) {
 
 const PHONES = {};
 document.querySelectorAll(".phone").forEach((p) => {
-  PHONES[p.dataset.id] = { el: p, role: p.dataset.role };
+  PHONES[p.dataset.id] = { el: p, role: p.dataset.role, lastSeq: 0 };
   const note = document.createElement("div");
   note.className = "wa-note"; note.textContent = "WhatsApp screen — mock for the demo";
   p.querySelector(".chat").before(note);
 });
+
+// poll every phone's own inbox so the demo reflects chats done on the dedicated pages too
+async function pollAll() {
+  for (const [id, phone] of Object.entries(PHONES)) {
+    try {
+      const { messages } = await api(`/api/inbox/${encodeURIComponent(id)}?after=${phone.lastSeq}`);
+      messages.forEach((m) => { bubble(id, m.text, m.role === "self" ? "out" : "in", m.buttons); phone.lastSeq = m.seq; });
+    } catch {}
+  }
+}
 
 function bubble(phoneId, text, cls, buttons) {
   const phone = PHONES[phoneId];
@@ -34,19 +44,12 @@ function bubble(phoneId, text, cls, buttons) {
 
 const PROOF_ACTIONS = ["work_done", "part_fitted"];
 async function drive(role, fromId, payload) {
-  if (payload.text) bubble(fromId, payload.text, "out");
-  else if (payload.button_id) bubble(fromId, payload.label || payload.button_id, "out");
   if (payload.button_id && PROOF_ACTIONS.some((p) => payload.button_id.startsWith(p))) {
     payload.proof_link = "https://capture.resq/" + Date.now(); payload.place = "Andheri 400069";
   }
-  let res;
-  try { res = await api("/api/sim", { method: "POST", body: JSON.stringify({ role, from_id: fromId, ...payload }) }); }
+  try { await api("/api/sim", { method: "POST", body: JSON.stringify({ role, from_id: fromId, ...payload }) }); }
   catch (e) { console.error(e); return; }
-  (res.replies || []).forEach((m) => {
-    let target = PHONES[m.to] ? m.to : null;
-    if (!target) for (const [id, p] of Object.entries(PHONES)) if (p.role === m.role) { target = id; break; }
-    bubble(target || fromId, m.text, "in", m.buttons);
-  });
+  await pollAll();   // renders self + replies from the shared inbox (in order)
   refreshRail();
 }
 
@@ -115,13 +118,14 @@ document.getElementById("reset").onclick = async () => {
   if (!confirm("Wipe all jobs/events and re-seed?")) return;
   await api("/api/reset", { method: "POST" });
   document.querySelectorAll(".chat").forEach((c) => (c.innerHTML = ""));
-  refreshRail();
+  Object.values(PHONES).forEach((p) => (p.lastSeq = 0));
+  pollAll(); refreshRail();
 };
 
 (async () => {
   try { const h = await api("/health"); document.getElementById("env").textContent = h.env + (h.use_mocks ? " · mocks" : " · live"); document.getElementById("conn").style.color = "var(--accent)"; }
   catch { document.getElementById("conn").style.color = "var(--bad)"; }
   try { await api("/api/seed", { method: "POST" }); } catch {}
-  refreshRail();
-  setInterval(refreshRail, 4000);
+  await pollAll(); refreshRail();
+  setInterval(() => { pollAll(); refreshRail(); }, 3000);
 })();

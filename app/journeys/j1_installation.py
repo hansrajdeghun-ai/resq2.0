@@ -38,18 +38,27 @@ def _offer_slots_for(ctx: Ctx, m) -> None:
 
 @on("book_install")
 async def book_install(ctx: Ctx) -> None:
-    # ground in what the household actually owns (spec 2.5)
+    # ground in what the household actually owns (spec 2.5) — AI decides the machine
+    from app.agent.resolve import resolve_machine
+
     installable = await _installable(ctx)
     if not installable:
         ctx.say("I don't see a machine on your account to install.\n"
                 "Installation opens after a Reliance Digital delivery.")
-    elif len(installable) == 1:
-        _offer_slots_for(ctx, installable[0])
-    else:
+        return
+    serial, status = await resolve_machine(ctx.inbound.text, installable)
+    names = ", ".join(_mname(m) for m in installable)
+    if status == "not_owned":
+        ctx.say(f"I don't see that on your account.\nYou have: {names}. Install one of these?",
+                list_rows=[(f"install_machine:{m.serial}", _mname(m)) for m in installable],
+                list_button="Choose a machine")
+    elif status == "ask":
         ctx.say("Which machine should we install?",
                 list_rows=[(f"install_machine:{m.serial}", _mname(m)) for m in installable],
                 list_button="Choose a machine")
         ctx.ask("which_machine")
+    else:
+        _offer_slots_for(ctx, await ctx.machine(serial))
 
 
 @on("install_machine")

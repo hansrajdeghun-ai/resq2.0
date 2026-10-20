@@ -24,10 +24,11 @@ async def send_optin(ctx: Ctx) -> None:
     cust_id = parts[1] if len(parts) > 1 else "cust-sharma"
     serial = parts[2] if len(parts) > 2 else "SN-NEW-0001"
     category = parts[3] if len(parts) > 3 else "AC"
+    model = parts[4] if len(parts) > 4 and parts[4] else f"{category} unit"
+    brand = model.split()[0] if parts[4:] and parts[4] else "Samsung"
     await ctx.emit(E.SOLD, actor="store", machine_id=serial,
                    payload={"serial": serial, "category": category,
-                            "brand": "Samsung", "model": f"{category} unit",
-                            "customer_id": cust_id})
+                            "brand": brand, "model": model, "customer_id": cust_id})
     ctx.to(cust_id, Role.CUSTOMER,
            "Welcome to Reliance Digital.\nGet delivery and service updates here?",
            buttons=[(f"optin:yes:{serial}", "Yes"), (f"optin:no:{serial}", "No")])

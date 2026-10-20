@@ -123,8 +123,10 @@ async def dispatch(session: AsyncSession, inbound: InboundMessage) -> list[Outbo
     from app.models.ops import Message
 
     for m in ctx.out:
+        # persist buttons AND list rows so choosers (e.g. "which machine?") render in chat
         session.add(Message(to_id=m.to_id, role=m.role.value, text=m.text,
-                            buttons=[{"id": b.id, "title": b.title} for b in m.buttons]))
+                            buttons=[{"id": b.id, "title": b.title}
+                                     for b in (m.buttons + m.list_rows)]))
 
     conv.updated_at = datetime.now(timezone.utc)
     await session.commit()

@@ -30,18 +30,20 @@ async def report_fault(ctx: Ctx) -> None:
         ctx.say("I don't see a machine on your account yet.\n"
                 "Tell me what you bought and we will help.")
         return
-    # pick the machine the customer named, or the only one, else ask which
-    m = H.match_category(machines, ctx.inbound.text)
-    if m is None and len(machines) == 1:
-        m = machines[0]
-    if m is None:
+    # the AI decides which owned machine this is about (word-list is only an offline fallback)
+    from app.agent.resolve import resolve_machine
+
+    serial, status = await resolve_machine(ctx.inbound.text, machines)
+    if status in ("not_owned", "ask"):
+        names = ", ".join(H.mname(x) for x in machines)
         ctx.conversation.history = [*(ctx.conversation.history or []),
                                     {"symptom": ctx.inbound.text}]
-        ctx.say("Which machine has the problem?",
-                list_rows=[(f"fault_pick:{x.serial}", H.mname(x)) for x in machines],
+        lead = (f"I don't see that on your account.\nYou have: {names}. Which should we look at?"
+                if status == "not_owned" else "Which machine has the problem?")
+        ctx.say(lead, list_rows=[(f"fault_pick:{x.serial}", H.mname(x)) for x in machines],
                 list_button="Choose a machine")
         return
-    await _start_fault(ctx, m, ctx.inbound.text)
+    await _start_fault(ctx, await ctx.machine(serial), ctx.inbound.text)
 
 
 @on("fault_pick")
