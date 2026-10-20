@@ -301,6 +301,8 @@ def build_html() -> str:
       .res a {{ color:#2743a0; word-break:break-all; }}
       .idx {{ margin-top:22px; font-size:12.5px; color:#4A5A72; column-count:2; }}
       .res .pp {{ font-size:12.5px; color:#2b3a4f; line-height:1.55; margin:8px 0; }}
+      .arch {{ background:#0e1b2e; color:#cfe0ff; font-size:9.5px; line-height:1.4; padding:12px;
+               border-radius:10px; overflow:hidden; white-space:pre; }}
     </style></head><body>
       <div class="cover">
         <h1>resQ<span class="dot">2.0</span></h1>
@@ -310,7 +312,6 @@ def build_html() -> str:
         <div class="links">
           <a href="{BASE}">▶ Open the live app<span class="u">{html.escape(BASE)}</span></a>
           <a href="{REPO}">◆ Source code — GitHub<span class="u">{html.escape(REPO)}</span></a>
-          <a href="{REPO}/blob/main/DEMO.md">▣ Demo runbook (click-through)<span class="u">{REPO}/blob/main/DEMO.md</span></a>
         </div>
         <div class="meta">13 journeys · exceptions · protective rules · append-only event trails</div>
       </div>
@@ -358,6 +359,41 @@ def build_html() -> str:
       </section>
 
       <section class="res">
+        <h2>Architecture</h2>
+        <p class="pp">Event-sourced core. Every change is an immutable event; read models
+        (ledger, jobs, payments) are projections. One channel-agnostic engine serves WhatsApp,
+        the web app and the API. Protective rules and money actions are enforced in code; the
+        AI agent does intent + language + machine resolution.</p>
+        <pre class="arch">
+ WhatsApp Cloud API ─webhook─┐
+ Web app / REST  ──/api/sim──┤─▶  engine.router  (intent dispatch · take-over guard)
+                             │          │
+      AI agent (OpenAI) ─────┘          ▼
+   intent routing · translation   protective rules (code) ─▶ journeys J1–J13
+   machine resolution · vision            │                        │
+                                          ▼                        ▼
+                                 outbound messages        events.log (append-only)
+   timers · Pub/Sub · Kapture ──▶ emit events ──────────────────▶ projections
+                                                                   (ledger · jobs · payments)
+                                          └────────────▶ monitoring (area-manager thread)
+        </pre>
+        <table>
+          <tr><td>app/events</td><td>Append-only event log + projections (the source of truth).</td></tr>
+          <tr><td>app/models</td><td>Machine-first ledger & records (Machine, Job, Visit, Task, Request…).</td></tr>
+          <tr><td>app/engine</td><td>Per-message context + intent router / dispatcher (surface-agnostic).</td></tr>
+          <tr><td>app/agent</td><td>LLM layer + resolve (machine), diagnose, language, vision, voice, orchestrator.</td></tr>
+          <tr><td>app/journeys</td><td>J1–J13 + shared steps (assign/visit) + exception handlers.</td></tr>
+          <tr><td>app/rules</td><td>The 8 protective rules — hard gates in code.</td></tr>
+          <tr><td>app/integrations</td><td>Kapture REST (live), Pub/Sub consumer, UPI payments (mock-swappable).</td></tr>
+          <tr><td>app/monitoring</td><td>Alerts (≤1/10min/cause), status, take-over, digests.</td></tr>
+          <tr><td>app/timers</td><td>APScheduler sweeps (cooling, owner-no-reply, waiting-confirm, brand-ticket…).</td></tr>
+          <tr><td>app/channels</td><td>WhatsApp Cloud API (webhook + send) and the in-process simulator.</td></tr>
+          <tr><td>app/api</td><td>REST the web clients use (sim, ledger, inbox, config, export, qr…).</td></tr>
+          <tr><td>clients/web</td><td>Login, customer app, owner/field/area apps, admin console, 4-phone demo.</td></tr>
+        </table>
+      </section>
+
+      <section class="res">
         <h2>Resources &amp; links</h2>
         <table>
           <tr><td>Live app</td><td><a href="{BASE}">{html.escape(BASE)}</a></td></tr>
@@ -373,7 +409,30 @@ def build_html() -> str:
     </body></html>"""
 
 
+CACHE = os.path.join(os.path.dirname(OUT), ".submission_cache.json")
+
+
+async def _render_pdf():
+    """Build the PDF from SECTIONS (in-memory or cached) — no app driving."""
+    import json
+    with open(CACHE, "w") as f:
+        json.dump(SECTIONS, f)
+    async with async_playwright() as p:
+        b = await p.chromium.launch()
+        report = await b.new_page()
+        await report.set_content(build_html(), wait_until="networkidle")
+        await report.pdf(path=OUT, format="A4", print_background=True)
+        await b.close()
+
+
 async def main():
+    import json
+    # REBUILD_ONLY=1 rebuilds the PDF from the last capture (fast, for layout tweaks)
+    if os.environ.get("REBUILD_ONLY") == "1" and os.path.exists(CACHE):
+        SECTIONS.extend(json.load(open(CACHE)))
+        await _render_pdf()
+        print(f"\nRebuilt {OUT} from cache ({len(SECTIONS)} sections)")
+        return
     async with httpx.AsyncClient(base_url=BASE, timeout=90) as c, async_playwright() as p:
         b = await p.chromium.launch()
         pg = await b.new_page(viewport={"width": 1500, "height": 1000}, device_scale_factor=2)
@@ -385,10 +444,8 @@ async def main():
                 await capture(c, pg, code, title, summary)
             except Exception as e:  # noqa: BLE001
                 print(f"!! {code} failed: {e}")
-        report = await b.new_page()
-        await report.set_content(build_html(), wait_until="networkidle")
-        await report.pdf(path=OUT, format="A4", print_background=True)
         await b.close()
+    await _render_pdf()
     print(f"\nWrote {OUT} ({len(SECTIONS)} sections)")
 
 
