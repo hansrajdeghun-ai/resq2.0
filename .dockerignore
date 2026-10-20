@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.sqlite3
+resq_ca_bundle.pem
+.env
+.git/
+/tmp/

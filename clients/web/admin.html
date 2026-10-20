@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>resQ 2.0 — admin</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="side-brand" href="/" title="Home">
+        <span class="logo">resQ<span class="dot">2.0</span></span>
+        <div class="tag">Admin console</div>
+      </a>
+      <nav class="side-nav" id="sidenav">
+        <div class="side-sec">Admin</div>
+        <a data-section="overview" class="active">▦ Overview</a>
+
+        <a data-section="people">☰ People</a>
+        <div class="subnav" data-for="people">
+          <a data-sub="owner">Service owners</a>
+          <a data-sub="field">Technicians</a>
+          <a data-sub="area">Area managers</a>
+          <a data-sub="customer">Customers</a>
+        </div>
+
+        <a data-section="ratecard">💰 Rate card</a>
+
+        <a data-section="routing">⚙ Routing &amp; diagnosis</a>
+        <div class="subnav" data-for="routing">
+          <a data-sub="keywords">Intent keywords</a>
+          <a data-sub="self_check">Self-check</a>
+          <a data-sub="likely_fault">Pre-diagnosis</a>
+        </div>
+      </nav>
+      <div class="side-foot">
+        <button id="reset" class="btn">↺ Reset demo</button>
+      </div>
+    </aside>
+
+    <div class="content">
+      <section id="sec-overview" class="section active">
+        <h1>Overview</h1>
+        <p class="lead">Who and what is in the system right now.</p>
+        <div class="stats" id="stats"></div>
+        <div class="card" style="margin-top:18px">
+          <div class="cfg-head"><h3>Recent activity</h3>
+            <button id="export-log" class="btn">⬇ Download event log</button></div>
+          <div id="ov-events" class="events"></div></div>
+      </section>
+
+      <section id="sec-people" class="section">
+        <h1>People</h1>
+        <p class="lead">Everyone in the system, by role. List and onboard in one place —
+          these are who you can sign in as.</p>
+        <div id="people"></div>
+      </section>
+
+      <section id="sec-ratecard" class="section">
+        <h1>Rate card</h1>
+        <p class="lead">The only prices the agent may quote. Edit lines and save — live
+          immediately. (Off-card prices are blocked by a protective rule.)</p>
+        <div id="ratecard-box"></div>
+      </section>
+
+      <section id="sec-routing" class="section">
+        <h1>Routing &amp; diagnosis</h1>
+        <p class="lead">How free text maps to a journey, and the offline self-check /
+          pre-diagnosis fallbacks. The LLM is used first; these apply when it is off.</p>
+        <div class="admin" id="routing-editors" style="display:grid"></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/common.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

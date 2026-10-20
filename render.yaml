@@ -1,0 +1,14 @@
+# One-click deploy to Render (https://render.com). Push the repo, "New + Blueprint".
+services:
+  - type: web
+    name: resq-2
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: USE_MOCKS
+        value: "1"            # flip to 0 once Kapture/Pub/Sub/WhatsApp creds are set
+      - key: OPENAI_API_KEY
+        sync: false           # set in the dashboard (do not commit)
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:////app/resq.sqlite3

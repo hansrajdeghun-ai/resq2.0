@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>resQ 2.0 — 4-phone demo</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" title="Home" style="text-decoration:none">
+      <span class="logo">resQ<span class="dot">2.0</span></span>
+      <span class="tag">Live demo · all four WhatsApp numbers on one screen</span>
+    </a>
+    <nav class="tabs">
+      <a class="tab" href="/">Switch user</a>
+      <a class="tab" href="/admin">Admin</a>
+    </nav>
+    <div class="status">
+      <button id="reset" class="btn">↺ Reset demo</button>
+      <span id="conn" class="pill">●</span> <span id="env"></span>
+    </div>
+  </header>
+
+  <main id="view-demo" class="view active">
+    <section class="phones">
+      <div class="phone" data-role="customer" data-id="cust-sharma">
+        <div class="phone-head">👤 Customer <small>Mr Sharma</small></div>
+        <div class="chat"></div>
+        <div class="composer">
+          <div class="quick"></div>
+          <div class="row"><input placeholder="Type a message…" /><button class="send">Send</button></div>
+          <div class="hint">Try: “install my AC”, “not cooling”, “moving house”, “talk to a person”</div>
+        </div>
+      </div>
+      <div class="phone" data-role="owner" data-id="P-coolserve">
+        <div class="phone-head">🏪 Service owner <small>Coolserve</small></div>
+        <div class="chat"></div>
+        <div class="composer"><div class="quick"></div>
+          <div class="row"><input placeholder="Owner…" /><button class="send">Send</button></div></div>
+      </div>
+      <div class="phone" data-role="field" data-id="T-ravi">
+        <div class="phone-head">🔧 Field <small>Ravi</small></div>
+        <div class="chat"></div>
+        <div class="composer"><div class="quick"></div>
+          <div class="row"><input placeholder="Technician…" /><button class="send">Send</button></div></div>
+      </div>
+      <div class="phone" data-role="area" data-id="area-andheri">
+        <div class="phone-head">🧭 Area manager <small>Andheri</small></div>
+        <div class="chat"></div>
+        <div class="composer"><div class="quick"></div>
+          <div class="row"><input placeholder="e.g. status R-1001" /><button class="send">Send</button></div></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

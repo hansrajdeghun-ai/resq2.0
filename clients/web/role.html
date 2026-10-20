@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>resQ 2.0</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="side-brand" href="/" title="Home">
+        <span class="logo">resQ<span class="dot">2.0</span></span>
+        <div class="tag" id="roletag">—</div>
+      </a>
+      <nav class="side-nav" id="viewnav"></nav>
+      <div class="side-foot">
+        <div class="side-persona"><div class="who" id="whoami">—</div>
+          <div class="sub" id="whoid"></div></div>
+        <a class="btn" href="/">Switch user</a>
+        <button id="reset" class="btn">↺ Reset demo</button>
+        <div class="muted" style="text-align:center"><span id="conn" class="pill">●</span> connected</div>
+      </div>
+    </aside>
+
+    <div class="content">
+      <!-- chat section -->
+      <section id="sec-chat" class="rsec active">
+        <div class="phone solo wide">
+          <div class="phone-head" id="phone-head">Chat</div>
+          <div class="wa-note">WhatsApp screen — mock for the demo</div>
+          <div class="chat" id="chat"></div>
+          <div class="composer">
+            <div class="quick" id="quick"></div>
+            <div class="row"><input id="msg" placeholder="Type a message…" /><button class="send" id="send">Send</button></div>
+            <div class="hint" id="hint"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- generic panel section (jobs / technicians / statement / console / pos) -->
+      <section id="sec-panel" class="rsec">
+        <h1 id="panel-title"></h1>
+        <p class="lead" id="panel-lead"></p>
+        <div id="panel"></div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/common.js"></script>
+  <script src="/role.js"></script>
+</body>
+</html>

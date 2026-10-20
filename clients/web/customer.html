@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reliance resQ</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body class="app-body">
+  <div class="app">
+    <header class="app-bar">
+      <a class="app-brand" href="/" title="Home">Reliance <b>resQ</b></a>
+      <div class="app-bar-right">
+        <span class="app-greet" id="greet">Namaste</span>
+        <a class="app-avatar" href="/" title="Switch user" id="avatar">HR</a>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <!-- HOME -->
+      <section id="v-home" class="app-view active">
+        <div class="app-hero">
+          <h2 id="hero-hi">Namaste 👋</h2>
+          <p>Your machines, serviced. Book a repair, track a visit, or just chat.</p>
+          <button class="app-cta" data-go="chat" data-send="talk_to_person">Chat with resQ →</button>
+        </div>
+
+        <div class="app-sec-head"><h3>Repair &amp; service</h3><button class="link" data-view="services">View all</button></div>
+        <div class="tile-grid" id="repair-tiles"></div>
+
+        <div class="app-sec-head"><h3>Maintenance services</h3><button class="link" data-view="services">View all</button></div>
+        <div class="tile-row" id="maint-tiles"></div>
+
+        <div class="app-sec-head"><h3>Quick actions</h3></div>
+        <div class="quick-actions" id="quick-actions"></div>
+      </section>
+
+      <!-- ALL SERVICES -->
+      <section id="v-services" class="app-view">
+        <h2 class="app-title">All services</h2>
+        <div class="service-list" id="service-list"></div>
+      </section>
+
+      <!-- MY DEVICES -->
+      <section id="v-devices" class="app-view">
+        <h2 class="app-title">My devices</h2>
+        <div id="devices"></div>
+      </section>
+
+      <!-- CHAT -->
+      <section id="v-chat" class="app-view app-chat">
+        <div class="wa-note">WhatsApp — resQ service · mock for the demo</div>
+        <div class="chat" id="chat"></div>
+        <div class="composer">
+          <div class="quick" id="quick"></div>
+          <div class="row"><input id="msg" placeholder="Message resQ…" /><button class="send" id="send">Send</button></div>
+          <div class="hint">Type a symptom, record a voice note, or snap the error code.</div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="app-nav" id="appnav">
+      <button data-view="home" class="active">🏠<span>Home</span></button>
+      <button data-view="services">🧰<span>All services</span></button>
+      <button data-view="devices">📺<span>My devices</span></button>
+      <button data-view="chat">💬<span>Chat</span></button>
+    </nav>
+  </div>
+
+  <script src="/common.js"></script>
+  <script src="/customer.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# Secrets — never commit
+.env
+*.env
+sa-key.json
+*-key.json
+credentials*.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# DB
+*.sqlite3
+*.db
+
+# Machine-specific CA bundle (contains corporate SASE root)
+resq_ca_bundle.pem
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Node (extension/app clients)
+node_modules/
+dist/
+build/
