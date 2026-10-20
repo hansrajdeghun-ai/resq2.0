@@ -8,7 +8,7 @@ async function api(path, opts) {
 
 const PHONES = {};
 document.querySelectorAll(".phone").forEach((p) => {
-  PHONES[p.dataset.id] = { el: p, role: p.dataset.role, lastSeq: 0 };
+  PHONES[p.dataset.id] = { el: p, role: p.dataset.role, lastSeq: 0, firstPoll: true };
   const note = document.createElement("div");
   note.className = "wa-note"; note.textContent = "WhatsApp screen — mock for the demo";
   p.querySelector(".chat").before(note);
@@ -19,9 +19,20 @@ async function pollAll() {
   for (const [id, phone] of Object.entries(PHONES)) {
     try {
       const { messages } = await api(`/api/inbox/${encodeURIComponent(id)}?after=${phone.lastSeq}`);
-      messages.forEach((m) => { bubble(id, m.text, m.role === "self" ? "out" : "in", m.buttons); phone.lastSeq = m.seq; });
+      messages.forEach((m) => {
+        phone.lastSeq = m.seq;
+        if (!phone.firstPoll && m.role === "self") return;   // already echoed
+        bubble(id, m.text, m.role === "self" ? "out" : "in", m.buttons);
+      });
+      phone.firstPoll = false;
     } catch {}
   }
+}
+function showTyping(phoneId) {
+  const chat = PHONES[phoneId].el.querySelector(".chat");
+  const t = document.createElement("div"); t.className = "bubble in typing";
+  t.innerHTML = "<span></span><span></span><span></span>";
+  chat.appendChild(t); chat.scrollTop = chat.scrollHeight; return t;
 }
 
 function bubble(phoneId, text, cls, buttons) {
@@ -44,12 +55,16 @@ function bubble(phoneId, text, cls, buttons) {
 
 const PROOF_ACTIONS = ["work_done", "part_fitted"];
 async function drive(role, fromId, payload) {
+  const echo = payload.text || payload.label;      // instant echo of the user's message
+  if (echo) bubble(fromId, echo, "out");
+  const typing = showTyping(fromId);
   if (payload.button_id && PROOF_ACTIONS.some((p) => payload.button_id.startsWith(p))) {
     payload.proof_link = "https://capture.resq/" + Date.now(); payload.place = "Andheri 400069";
   }
   try { await api("/api/sim", { method: "POST", body: JSON.stringify({ role, from_id: fromId, ...payload }) }); }
-  catch (e) { console.error(e); return; }
-  await pollAll();   // renders self + replies from the shared inbox (in order)
+  catch (e) { console.error(e); typing.remove(); return; }
+  typing.remove();
+  await pollAll();   // renders replies from the shared inbox (self already echoed)
   refreshRail();
 }
 
@@ -118,7 +133,7 @@ document.getElementById("reset").onclick = async () => {
   if (!confirm("Wipe all jobs/events and re-seed?")) return;
   await api("/api/reset", { method: "POST" });
   document.querySelectorAll(".chat").forEach((c) => (c.innerHTML = ""));
-  Object.values(PHONES).forEach((p) => (p.lastSeq = 0));
+  Object.values(PHONES).forEach((p) => { p.lastSeq = 0; p.firstPoll = true; });
   pollAll(); refreshRail();
 };
 

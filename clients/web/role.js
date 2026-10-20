@@ -45,18 +45,34 @@ function bubble(text, cls, buttons) {
   chat.scrollTop = chat.scrollHeight;
 }
 const PROOF = ["work_done", "part_fitted"];
+let firstPoll = true;
+function showTyping() {
+  const chat = document.getElementById("chat");
+  const t = document.createElement("div"); t.className = "bubble in typing";
+  t.innerHTML = "<span></span><span></span><span></span>";
+  chat.appendChild(t); chat.scrollTop = chat.scrollHeight; return t;
+}
 async function send(payload) {
+  const echo = payload.text || payload.label;
+  if (echo) bubble(echo, "out");
+  const typing = showTyping();
   if (payload.button_id && PROOF.some((p) => payload.button_id.startsWith(p))) {
     payload.proof_link = "https://capture.resq/" + Date.now(); payload.place = "Andheri 400069";
   }
   try { await sim(ROLE, persona.id, payload); } catch (e) { console.error(e); }
+  typing.remove();
   await pollInbox(); if (currentSec !== "chat") renderPanel(currentSec);
 }
 async function pollInbox() {
   if (!persona) return;
   try {
     const { messages } = await api(`/api/inbox/${encodeURIComponent(persona.id)}?after=${lastSeq}`);
-    messages.forEach((m) => { bubble(m.text, m.role === "self" ? "out" : "in", m.buttons); lastSeq = m.seq; });
+    messages.forEach((m) => {
+      lastSeq = m.seq;
+      if (!firstPoll && m.role === "self") return;
+      bubble(m.text, m.role === "self" ? "out" : "in", m.buttons);
+    });
+    firstPoll = false;
   } catch {}
 }
 
