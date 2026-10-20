@@ -37,7 +37,21 @@ Each row: **[time]** · **Open** (link) · **Do** · **Caption** (on-screen) · 
   Here are all four numbers on one screen."
 - **Expect:** login grid, then the 4 phones.
 
-### 0:15–1:05 — One job, end to end (the core)
+### 0:15–0:50 — AI-native (customer experience) — lead with this
+- **Open:** https://resq-2-jrec.onrender.com/customer → tap **Chat** (bottom nav)
+- **Do:** type `my AC is making a loud noise`.
+  - **Say:** "No menus — free text. The agent identifies the intent and runs a self-check
+    tailored to the symptom, grounded in the machine on the account."
+- **Do:** type something you DON'T own, e.g. `my washing machine won't drain`.
+  - **Caption:** The agent knows what you own
+  - **Say:** "Say a product you don't own and it won't pretend — it offers what's on your account."
+- **Do:** type in Hindi, e.g. `AC thanda nahi kar raha`.
+  - **Caption:** AI triage — grounded, in your language
+  - **Say:** "And it replies in the customer's language — here, Hindi."
+- **Do:** tap **🎤 Voice** or **📷 Error code** (optional).
+  - **Say:** "Voice notes and a photo of the error code work too."
+
+### 0:50–1:40 — One job, end to end (the core)
 - **Open:** https://resq-2-jrec.onrender.com/demo
 - **Do (Customer phone):** type `install my AC` → tap **Sun 10-12**.
   - **Expect:** "Your Samsung AC is ready to install" → "Booked for Sun 10-12".
@@ -51,16 +65,6 @@ Each row: **[time]** · **Open** (link) · **Do** · **Caption** (on-screen) · 
 - **Do (Customer phone):** tap **Yes**.
   - **Caption:** Serial → household, bound at the job
   - **Say:** "Confirmed. The AC is in their Reliance record, warranty started — every step an event."
-
-### 1:05–1:35 — AI-native (customer experience)
-- **Open:** https://resq-2-jrec.onrender.com/customer → tap **Chat** (bottom nav)
-- **Do:** type `my AC is making a loud noise`.
-  - **Say:** "Free text, not menus — a self-check tailored to the symptom."
-- **Do:** type in Hindi, e.g. `AC thanda nahi kar raha`.
-  - **Caption:** AI triage — grounded, in your language
-  - **Say:** "And it replies in the customer's language."
-- **Do:** tap **🎤 Voice** or **📷 Error code** (optional).
-  - **Say:** "Voice notes and a photo of the error code work too."
 
 ### 1:35–2:05 — Protective rules + exceptions (the jury's attack surface)
 - **Open:** https://resq-2-jrec.onrender.com/demo (reset, then run the loop to the Field "Arrived" step)

@@ -7,7 +7,7 @@ could be several). The hardcoded word-list in _helpers is only the offline fallb
 from __future__ import annotations
 
 from app.agent import llm
-from app.journeys._helpers import match_category, mentioned_product
+from app.journeys._helpers import match_category
 
 
 async def resolve_machine(text: str | None, machines: list):
@@ -38,12 +38,11 @@ async def resolve_machine(text: str | None, machines: list):
             if tok.upper() == "ASK":
                 return None, "ask"
 
-    # offline fallback — heuristic (the only place the word-list is used)
+    # offline fallback (no LLM key): match on the machine's OWN terms; if nothing
+    # matches, ASK rather than guess — never assume a machine the customer didn't name.
     owned = match_category(machines, text)
     if owned:
         return owned.serial, "ok"
-    if mentioned_product(text):
-        return None, "not_owned"
-    if len(machines) == 1:
-        return machines[0].serial, "ok"
+    if len(machines) == 1 and not (text or "").strip():
+        return machines[0].serial, "ok"   # no text, one machine -> it's unambiguous
     return None, "ask"

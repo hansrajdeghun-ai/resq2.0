@@ -16,6 +16,7 @@ import httpx
 from playwright.async_api import async_playwright
 
 BASE = os.environ.get("SUBMIT_BASE", "https://resq-2-jrec.onrender.com")
+REPO = os.environ.get("SUBMIT_REPO", "https://github.com/hansrajdeghun-ai/resq2.0")
 PROOF = {"proof_link": "https://capture.resq/x", "place": "Andheri 400069"}
 OUT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resQ_2.0_Submission.pdf")
 
@@ -286,15 +287,88 @@ def build_html() -> str:
       .extra img {{ width:60%; border:1px solid #DBE2EA; border-radius:10px; }}
       .trail {{ font-family:ui-monospace,Menlo,monospace; font-size:9px; color:#4A5A72;
                 background:#F4F6F9; padding:8px 10px; border-radius:8px; word-break:break-word; margin-top:12px; }}
+      .links {{ display:flex; flex-direction:column; gap:10px; width:360px; margin:28px auto 0; }}
+      .links a {{ display:block; text-decoration:none; color:#0E2440; border:1px solid #DBE2EA;
+                  border-radius:12px; padding:12px 16px; font-size:14px; font-weight:600;
+                  background:#F4F6F9; }}
+      .links a .u {{ display:block; font-weight:400; font-size:11px; color:#E8820E; margin-top:2px;
+                     word-break:break-all; }}
+      .res {{ page-break-after:always; }}
+      .res h2 {{ font-size:22px; border-bottom:2px solid #E8820E; padding-bottom:6px; }}
+      .res table {{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:10px; }}
+      .res td {{ padding:9px 8px; border-bottom:1px solid #EAEEF3; vertical-align:top; }}
+      .res td:first-child {{ font-weight:600; width:34%; }}
+      .res a {{ color:#2743a0; word-break:break-all; }}
+      .idx {{ margin-top:22px; font-size:12.5px; color:#4A5A72; column-count:2; }}
+      .res .pp {{ font-size:12.5px; color:#2b3a4f; line-height:1.55; margin:8px 0; }}
     </style></head><body>
       <div class="cover">
         <h1>resQ<span class="dot">2.0</span></h1>
         <p>AI-native service on WhatsApp — Reliance Digital</p>
         <p>Test evidence — every journey driven on the deployed app,<br/>
            with every message sent and received, per role.</p>
-        <div class="meta">Deployed: {html.escape(BASE)}<br/>
-          13 journeys · exceptions · protective rules · append-only event trails</div>
+        <div class="links">
+          <a href="{BASE}">▶ Open the live app<span class="u">{html.escape(BASE)}</span></a>
+          <a href="{REPO}">◆ Source code — GitHub<span class="u">{html.escape(REPO)}</span></a>
+          <a href="{REPO}/blob/main/DEMO.md">▣ Demo runbook (click-through)<span class="u">{REPO}/blob/main/DEMO.md</span></a>
+        </div>
+        <div class="meta">13 journeys · exceptions · protective rules · append-only event trails</div>
       </div>
+
+      <section class="res">
+        <h2>Contents</h2>
+        <table>
+          <tr><td>1 · Product &amp; demo</td><td>What resQ 2.0 is, the four WhatsApp roles, and how to run the demo.</td></tr>
+          <tr><td>2 · Resources &amp; links</td><td>Live app, repo, runbook, event-log export, tests.</td></tr>
+          <tr><td>3 · Journeys (evidence)</td><td>Real screenshots of every journey on the live app, with event trails.</td></tr>
+        </table>
+        <div class="idx" style="margin-top:18px">{''.join(f"<div>{html.escape(s['code'])} · {html.escape(s['title'])}</div>" for s in SECTIONS)}</div>
+      </section>
+
+      <section class="res">
+        <h2>Product &amp; demo details</h2>
+        <p class="pp"><b>What it is.</b> resQ 2.0 is Reliance Digital's service, rebuilt on WhatsApp.
+        The AI agent does the routine work end to end; people act only on exceptions. Underneath is
+        a registry: every serial bound to a household, with its warranty, service history and
+        remaining life — the asset a pure e-commerce competitor cannot copy.</p>
+        <p class="pp"><b>Four WhatsApp numbers (roles).</b> 👤 Customer · 🏪 Service owner ·
+        🔧 Field (technician / store associate / delivery / service bench) · 🧭 Area manager.
+        One customer thread per household; one open question at a time.</p>
+        <p class="pp"><b>AI-native.</b> Free-text intent routing, replies in the customer's language
+        (e.g. Hindi), a brand self-check and pre-diagnosis grounded in what the household owns,
+        voice notes and error-code photos, and natural grounded replies — all with the OpenAI
+        model; deterministic fallbacks when a key is absent.</p>
+        <p class="pp"><b>Guardrails.</b> An append-only event log (a correction is a new event),
+        a job state machine, and eight protective rules enforced in code — never by the model.</p>
+        <p class="pp"><b>How to read this document.</b> Each journey page is a real screenshot of
+        the live deployed app (the four phones on one screen), plus any other participant's thread,
+        and the append-only event trail that journey produced.</p>
+        <h2 style="margin-top:22px">What the demo proves (judging)</h2>
+        <table>
+          <tr><td>Works end to end (25)</td><td>J1–J13 — every journey runs from booking to close.</td></tr>
+          <tr><td>Customer experience (20)</td><td>AI triage, language mirroring, UPI QR, grounding in owned machines.</td></tr>
+          <tr><td>Human touches (15)</td><td>J10 talk-to-a-person, resQ-desk take-over, the action register.</td></tr>
+          <tr><td>Exceptions (15)</td><td>EX + handlers: wrong serial, decline→backup→escalate, site not ready, payment fails, DOA rejected.</td></tr>
+          <tr><td>Protective rules (15)</td><td>Serial match, proof via capture link, rate-card prices, no cash, handover code, payout guard.</td></tr>
+          <tr><td>Monitoring (10)</td><td>Area overview (pie, exceptions, live log), status on request, 8am/6pm digest.</td></tr>
+        </table>
+        <p class="pp" style="margin-top:14px"><b>Run the demo:</b> open the live app, click
+        <b>Reset demo</b>, then follow the one-job loop — customer books → owner assigns →
+        technician scans serial + finishes → customer confirms. Full click-through in the runbook.</p>
+      </section>
+
+      <section class="res">
+        <h2>Resources &amp; links</h2>
+        <table>
+          <tr><td>Live app</td><td><a href="{BASE}">{html.escape(BASE)}</a></td></tr>
+          <tr><td>Source code (GitHub)</td><td><a href="{REPO}">{html.escape(REPO)}</a></td></tr>
+          <tr><td>Demo runbook</td><td><a href="{REPO}/blob/main/DEMO.md">{REPO}/blob/main/DEMO.md</a></td></tr>
+          <tr><td>This evidence PDF</td><td><a href="{REPO}/blob/main/resQ_2.0_Submission.pdf">{REPO}/blob/main/resQ_2.0_Submission.pdf</a></td></tr>
+          <tr><td>Event-log export (live)</td><td><a href="{BASE}/api/export">{BASE}/api/export</a></td></tr>
+          <tr><td>Run all 13 journeys</td><td><code>python -m scripts.run_all_journeys</code></td></tr>
+          <tr><td>Tests</td><td><code>python -m pytest -q</code> — 55 passing</td></tr>
+        </table>
+      </section>
       {''.join(body)}
     </body></html>"""
 
