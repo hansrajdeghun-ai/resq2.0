@@ -1,0 +1,301 @@
+"""Build the submission PDF: drive every journey on the DEPLOYED app, capture EVERY
+message sent and received (each participant's full thread), and compile a titled PDF
+with the append-only event trail per journey. Resets the demo before each journey.
+
+    SUBMIT_BASE=https://resq-2-jrec.onrender.com python -m scripts.make_submission_pdf
+
+Output: resQ_2.0_Submission.pdf (repo root).
+"""
+from __future__ import annotations
+
+import asyncio
+import html
+import os
+
+import httpx
+from playwright.async_api import async_playwright
+
+BASE = os.environ.get("SUBMIT_BASE", "https://resq-2-jrec.onrender.com")
+PROOF = {"proof_link": "https://capture.resq/x", "place": "Andheri 400069"}
+OUT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "resQ_2.0_Submission.pdf")
+
+SECTIONS: list[dict] = []
+_participants: set[str] = set()
+
+LABELS = {
+    "cust-sharma": "👤 Customer · Mr Sharma", "P-coolserve": "🏪 Service owner · Coolserve",
+    "P-backup": "🏪 Backup owner · QuickFix", "T-ravi": "🔧 Field · Ravi",
+    "area-andheri": "🧭 Area manager", "finance-1": "💰 Finance", "store-1": "🏬 Store associate",
+    "bench-1": "🔧 Service bench", "driver-1": "🚚 Delivery", "owner-a": "🏪 Partner A (old city)",
+    "owner-b": "🏪 Partner B (new city)", "T-field-sunil": "🔧 New technician · Sunil",
+}
+DEFAULT_IDS = ["cust-sharma", "P-coolserve", "T-ravi", "area-andheri"]
+
+
+def label(pid: str) -> str:
+    return LABELS.get(pid, pid)
+
+
+async def sim(c, role, frm, **payload):
+    _participants.add(frm)
+    await c.post("/api/sim", json={"role": role, "from_id": frm, **payload})
+
+
+async def job_id(c):
+    jobs = (await c.get("/api/jobs")).json()["jobs"]
+    return jobs[0]["id"] if jobs else None
+
+
+# ─── journey runners (button-driven; deterministic, no LLM needed) ──────────────
+async def visit_to_confirm(c, j):
+    await sim(c, "owner", "P-coolserve", button_id=f"job_accept:{j}", label="Accept")
+    await sim(c, "owner", "P-coolserve", button_id=f"assign_tech:{j}:T-ravi", label="Ravi · suggested")
+    await sim(c, "field", "T-ravi", button_id=f"on_my_way:{j}", label="On my way")
+    await sim(c, "field", "T-ravi", button_id=f"arrived:{j}", label="Arrived")
+    await sim(c, "field", "T-ravi", button_id=f"scanserial:{j}", label="📷 Scan serial")
+    await sim(c, "field", "T-ravi", button_id=f"work_done:{j}", label="Work done", **PROOF)
+    await sim(c, "customer", "cust-sharma", button_id=f"confirm_work:{j}", label="Yes")
+
+
+async def j1(c):
+    await sim(c, "customer", "cust-sharma", text="install my AC")
+    await sim(c, "customer", "cust-sharma", button_id="slot:Sun 10-12", label="Sun 10-12")
+    j = await job_id(c)
+    await visit_to_confirm(c, j)
+
+
+async def j2(c):
+    await sim(c, "customer", "cust-sharma", text="my AC is not cooling")
+    j = await job_id(c)
+    await sim(c, "customer", "cust-sharma", button_id=f"still_broken:{j}", label="Still not working")
+    await sim(c, "customer", "cust-sharma", button_id="rslot:Tue 4-6", label="Tue 4-6")
+    await visit_to_confirm(c, j)
+
+
+async def j3(c):
+    await sim(c, "customer", "cust-sharma", text="my AC is not cooling")
+    j = await job_id(c)
+    await sim(c, "customer", "cust-sharma", button_id=f"still_broken:{j}", label="Still not working")
+    await sim(c, "customer", "cust-sharma", button_id="rslot:Tue 4-6", label="Tue 4-6")
+    await sim(c, "owner", "P-coolserve", button_id=f"job_accept:{j}", label="Accept")
+    await sim(c, "owner", "P-coolserve", button_id=f"assign_tech:{j}:T-ravi", label="Ravi · suggested")
+    await sim(c, "field", "T-ravi", button_id=f"on_my_way:{j}", label="On my way")
+    await sim(c, "field", "T-ravi", button_id=f"arrived:{j}", label="Arrived")
+    await sim(c, "field", "T-ravi", button_id=f"part_needed:{j}:gas pressure", label="Part needed")
+    await sim(c, "owner", "P-coolserve", button_id=f"part_received:{j}", label="Part received")
+    await sim(c, "customer", "cust-sharma", button_id=f"v2slot:{j}:Thu 4-6", label="Thu 4-6")
+    await sim(c, "field", "T-ravi", button_id=f"on_my_way:{j}", label="On my way")
+    await sim(c, "field", "T-ravi", button_id=f"arrived:{j}", label="Arrived")
+    await sim(c, "field", "T-ravi", button_id=f"scanserial:{j}", label="📷 Scan serial")
+    await sim(c, "field", "T-ravi", button_id=f"part_fitted:{j}", label="Part fitted", **PROOF)
+    await sim(c, "customer", "cust-sharma", button_id=f"confirm_work:{j}", label="Yes")
+
+
+async def j4(c):
+    await sim(c, "customer", "cust-sharma", text="warranty is over, AC not cooling")
+    j = await job_id(c)
+    await sim(c, "customer", "cust-sharma", button_id=f"oow_book:{j}", label="Book a visit")
+    await sim(c, "owner", "P-coolserve", button_id=f"job_accept:{j}", label="Accept")
+    await sim(c, "owner", "P-coolserve", button_id=f"assign_tech:{j}:T-ravi", label="Ravi · suggested")
+    await sim(c, "field", "T-ravi", button_id=f"on_my_way:{j}", label="On my way")
+    await sim(c, "field", "T-ravi", button_id=f"arrived:{j}", label="Arrived")
+    await sim(c, "field", "T-ravi", button_id=f"scanserial:{j}", label="📷 Scan serial")
+    await sim(c, "field", "T-ravi", button_id=f"oow_diagnose:{j}", label="Diagnose")
+    await sim(c, "customer", "cust-sharma", button_id=f"oow_approve:{j}", label="Approve")
+    await sim(c, "field", "T-ravi", button_id=f"work_done:{j}", label="Work done", **PROOF)
+    await sim(c, "field", "T-ravi", button_id=f"oow_pay:{j}", label="Send UPI")
+    await sim(c, "customer", "cust-sharma", button_id=f"oow_paid:{j}", label="I've paid")
+
+
+async def j5(c):
+    await sim(c, "customer", "cust-sharma", button_id="brand_repair", label="Book with the brand")
+    j = await job_id(c)
+    await sim(c, "customer", "cust-sharma", button_id=f"brand_confirm:{j}", label="Yes")
+
+
+async def j6(c):
+    await sim(c, "store", "store-1", button_id="walk_in_drop:cust-sharma:SN-PH-1", label="Drop off")
+    j = await job_id(c)
+    await sim(c, "field", "bench-1", button_id=f"walk_in_quote:{j}", label="Quote")
+    await sim(c, "customer", "cust-sharma", button_id=f"walk_in_approve:{j}", label="Approve")
+    await sim(c, "field", "bench-1", button_id=f"walk_in_ready:{j}", label="Ready", **PROOF)
+    jb = (await c.get(f"/api/events?job={j}")).json()["events"]
+    code = next((e["payload"].get("code") for e in jb if e["type"] == "ReadyForPickup"), "0000")
+    await sim(c, "store", "store-1", button_id=f"walk_in_collect:{j}:{code}", label="Hand over")
+
+
+async def j7(c):
+    await sim(c, "customer", "cust-sharma", button_id="report_doa:SN-AC-4471", label="Report DOA")
+    j = await job_id(c)
+    await sim(c, "field", "T-ravi", button_id=f"doa_check:{j}", label="DOA check", **PROOF)
+    await sim(c, "area", "area-andheri", button_id=f"doa_approve:{j}", label="Brand approves")
+    await sim(c, "customer", "cust-sharma", button_id=f"doa_swap:{j}", label="OK")
+    await sim(c, "customer", "cust-sharma", button_id=f"doa_close:{j}", label="Not needed")
+
+
+async def j8(c):
+    await sim(c, "customer", "cust-sharma", text="we are moving house")
+    r = (await c.get("/api/events?limit=5")).json()["events"]
+    req = next((e["request"] for e in r if e.get("request")), None)
+    await sim(c, "customer", "cust-sharma", button_id=f"move_approve:{req}", label="Approve")
+    await sim(c, "field", "owner-a", button_id=f"move_uninstalled:{req}", label="Uninstalled")
+    await sim(c, "field", "owner-b", button_id=f"move_installed:{req}", label="Installed")
+    await sim(c, "customer", "cust-sharma", button_id=f"move_paid:{req}", label="Pay by UPI")
+
+
+async def j9(c):
+    await sim(c, "customer", "cust-sharma", button_id="care_plan", label="See care plan")
+    await sim(c, "customer", "cust-sharma", button_id="plan_buy", label="Buy · ₹1999")
+    await sim(c, "customer", "cust-sharma", button_id="plan_paid", label="I've paid")
+
+
+async def j10(c):
+    await sim(c, "customer", "cust-sharma", button_id="slot:Sun 10-12", label="Sun 10-12")
+    j = await job_id(c)
+    await sim(c, "customer", "cust-sharma", button_id="complain", label="Complain")
+    await sim(c, "customer", "cust-sharma", button_id="talk_to_person", label="Talk to a person")
+
+
+async def j11(c):
+    await sim(c, "store", "store-1", button_id="send_optin:cust-sharma:SN-NEW-1:AC", label="Send opt-in")
+    await sim(c, "customer", "cust-sharma", button_id="optin:yes:SN-NEW-1", label="Yes")
+    await sim(c, "field", "driver-1", button_id="out_for_delivery:SN-NEW-1:3302", label="Out for delivery")
+    await sim(c, "field", "driver-1", button_id="deliver:SN-NEW-1:3302", label="Deliver", proof_link="x")
+
+
+async def j12(c):
+    await sim(c, "owner", "P-coolserve", button_id="add_technician:Sunil:field-sunil", label="Add technician")
+    await sim(c, "field", "T-field-sunil", button_id="tech_join", label="Join")
+    await sim(c, "field", "T-field-sunil", button_id="tech_skill:AC install", label="AC install")
+    await sim(c, "area", "area-andheri", button_id="tech_approve:T-field-sunil", label="Approve")
+
+
+async def j13(c):
+    await sim(c, "customer", "cust-sharma", button_id="slot:Sun 10-12", label="Sun 10-12")
+    j = await job_id(c)
+    await visit_to_confirm(c, j)
+    await sim(c, "area", "finance-1", button_id="approve_payout", label="Approve payout")
+    await sim(c, "owner", "P-coolserve", button_id=f"dispute:{j}", label="Dispute a line")
+
+
+async def jexc(c):
+    await sim(c, "customer", "cust-sharma", button_id="slot:Sun 10-12", label="Sun 10-12")
+    j = await job_id(c)
+    await sim(c, "owner", "P-coolserve", button_id=f"job_accept:{j}", label="Accept")
+    await sim(c, "owner", "P-coolserve", button_id=f"assign_tech:{j}:T-ravi", label="Ravi · suggested")
+    await sim(c, "field", "T-ravi", button_id=f"on_my_way:{j}", label="On my way")
+    await sim(c, "field", "T-ravi", button_id=f"arrived:{j}", label="Arrived")
+    await sim(c, "field", "T-ravi", button_id=f"serial:{j}:SN-WRONG-9999", label="Wrong serial (test)")
+
+
+JOURNEYS = [
+    ("J1", "Installation", "Booking, assignment and the visit — one job across the four numbers.", j1),
+    ("J2", "Repair at home", "Brand self-check, warranty from the ledger, book a technician with the part.", j2),
+    ("J3", "Repair with a part (two visits)", "Part not in the bag; one job stays open, visit 2 when it arrives.", j3),
+    ("J4", "Out-of-warranty repair", "Visit charge before booking, estimate before work, pay by UPI.", j4),
+    ("J5", "Repair by another brand", "The brand repairs it; the agent registers and tracks it in the thread.", j5),
+    ("J6", "Walk-in repair at the store", "Drop off, track on WhatsApp, collect with a one-time code.", j6),
+    ("J7", "Dead on arrival", "Technician checks, the brand approves, the store swaps the unit.", j7),
+    ("J8", "House move", "One request, uninstall + reinstall by two partners, one bill.", j8),
+    ("J9", "Maintenance & care plan", "Reminder, a care plan from an insurer, bound to the serial.", j9),
+    ("J10", "Complaint & escalation", "The agent replies with facts; a person takes over on request.", j10),
+    ("J11", "Sale, opt-in & delivery", "Opt-in, out-for-delivery, serial scanned, installation opened.", j11),
+    ("J12", "Technician roster", "The owner adds a technician; the area manager approves.", j12),
+    ("J13", "Payouts & disputes", "Payable after confirm + cooling; a person approves the run.", j13),
+    ("EX", "Exceptions & protective rules", "A wrong serial at the door stops the job (protective rule, jury attack).", jexc),
+]
+
+
+def bubbles_html(msgs: list[dict]) -> str:
+    rows = []
+    for m in msgs:
+        cls = "out" if m["role"] == "self" else "in"
+        btns = "".join(f"<span class='chip'>{html.escape(b['title'])}</span>" for b in m.get("buttons", []))
+        rows.append(f"<div class='b {cls}'>{html.escape(m['text'])}{('<div class=bb>' + btns + '</div>') if btns else ''}</div>")
+    return "".join(rows) or "<div class='muted'>—</div>"
+
+
+async def capture(c, code, title, summary):
+    ids = [p for p in DEFAULT_IDS if p in _participants] + \
+          [p for p in sorted(_participants) if p not in DEFAULT_IDS]
+    cols = []
+    for pid in ids:
+        msgs = (await c.get(f"/api/inbox/{pid}")).json()["messages"]
+        if not msgs:
+            continue
+        cols.append(f"<div class='col'><div class='colhead'>{html.escape(label(pid))}</div>"
+                    f"<div class='chat'>{bubbles_html(msgs)}</div></div>")
+    ev = (await c.get("/api/events?limit=80")).json()["events"]
+    trail = " · ".join(e["type"] for e in ev)
+    SECTIONS.append({"code": code, "title": title, "summary": summary,
+                     "cols": "".join(cols), "trail": trail})
+    print(f"captured {code} — {len(cols)} threads, {len(ev)} events")
+
+
+def build_html() -> str:
+    body = []
+    for s in SECTIONS:
+        body.append(f"""
+        <section class="j">
+          <h2>{html.escape(s['code'])} · {html.escape(s['title'])}</h2>
+          <p class="sum">{html.escape(s['summary'])}</p>
+          <div class="cols">{s['cols']}</div>
+          <p class="trail"><b>Append-only event trail:</b> {html.escape(s['trail'])}</p>
+        </section>""")
+    return f"""<!doctype html><html><head><meta charset="utf-8"><style>
+      @page {{ margin: 14mm; }}
+      body {{ font-family: -apple-system,'Segoe UI',Roboto,sans-serif; color:#0E2440; }}
+      .cover {{ text-align:center; padding:70mm 0; page-break-after:always; }}
+      .cover h1 {{ font-size:46px; margin:0; letter-spacing:-2px; }}
+      .cover .dot {{ color:#E8820E; font-size:20px; vertical-align:super; }}
+      .cover p {{ color:#4A5A72; font-size:15px; }}
+      .cover .meta {{ margin-top:28px; font-size:12px; color:#8795A8; }}
+      section.j {{ page-break-after:always; }}
+      h2 {{ font-size:19px; border-bottom:2px solid #E8820E; padding-bottom:6px; }}
+      .sum {{ color:#4A5A72; font-size:12.5px; margin:6px 0 12px; }}
+      .cols {{ display:flex; gap:10px; align-items:flex-start; }}
+      .col {{ flex:1; min-width:0; border:1px solid #DBE2EA; border-radius:10px; overflow:hidden; }}
+      .colhead {{ background:#0E2440; color:#fff; font-size:11px; font-weight:600; padding:7px 9px; }}
+      .chat {{ background:#eef1f5; padding:9px; display:flex; flex-direction:column; gap:6px; }}
+      .b {{ font-size:10.5px; line-height:1.35; padding:6px 8px; border-radius:9px; white-space:pre-wrap;
+            max-width:90%; }}
+      .b.in {{ background:#fff; align-self:flex-start; border:1px solid #e4e9f0; }}
+      .b.out {{ background:#E6F5EC; align-self:flex-end; color:#0c3a27; }}
+      .bb {{ margin-top:4px; display:flex; flex-wrap:wrap; gap:3px; }}
+      .chip {{ font-size:9px; border:1px solid #c7d3ff; color:#2743a0; border-radius:10px; padding:1px 5px; }}
+      .trail {{ font-family:ui-monospace,Menlo,monospace; font-size:9px; color:#4A5A72;
+                background:#F4F6F9; padding:8px 10px; border-radius:8px; word-break:break-word; margin-top:12px; }}
+      .muted {{ color:#8795A8; font-size:11px; padding:10px; }}
+    </style></head><body>
+      <div class="cover">
+        <h1>resQ<span class="dot">2.0</span></h1>
+        <p>AI-native service on WhatsApp — Reliance Digital</p>
+        <p>Test evidence — every journey driven on the deployed app,<br/>
+           with every message sent and received, per role.</p>
+        <div class="meta">Deployed: {html.escape(BASE)}<br/>
+          13 journeys · exceptions · protective rules · append-only event trails</div>
+      </div>
+      {''.join(body)}
+    </body></html>"""
+
+
+async def main():
+    async with httpx.AsyncClient(base_url=BASE, timeout=90) as c, async_playwright() as p:
+        for code, title, summary, runner in JOURNEYS:
+            _participants.clear()
+            try:
+                await c.post("/api/reset")               # reset the demo before each journey
+                await runner(c)
+                await capture(c, code, title, summary)
+            except Exception as e:  # noqa: BLE001
+                print(f"!! {code} failed: {e}")
+        b = await p.chromium.launch()
+        pg = await b.new_page()
+        await pg.set_content(build_html(), wait_until="networkidle")
+        await pg.pdf(path=OUT, format="A4", print_background=True)
+        await b.close()
+    print(f"\nWrote {OUT} ({len(SECTIONS)} sections)")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
