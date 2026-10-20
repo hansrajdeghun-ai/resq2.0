@@ -127,6 +127,28 @@ async def test_j10_talk_to_person_takes_over_and_silences_agent(session):
     assert E.TAKEN_OVER.value in await _types(session)
 
 
+async def test_j10_hand_back_resumes_agent_and_notifies_customer(session):
+    """After the desk hands a thread back, the customer is told the assistant is
+    back and the next message is handled by the agent (not swallowed by take-over)."""
+    await seed_demo(session)
+    await session.commit()
+    sim = Simulator(session)
+    # "talk to a person" as a first message -> placeholder R-0000 take-over
+    await sim.send(Role.CUSTOMER, "cust-sharma", text="talk to a person")
+    # while taken over, the agent stays quiet (forwards to the desk, only acks)
+    out = await sim.send(Role.CUSTOMER, "cust-sharma", text="any update?")
+    cust = [m for m in out if m.role == Role.CUSTOMER]
+    assert cust and all(not m.buttons for m in cust)   # ack only, no service options
+    # desk hands back -> customer is notified and the thread un-pins
+    sim.clear()
+    out = await sim.send(Role.AREA, "area-andheri", button_id="hand_back:R-0000")
+    assert any(m.role == Role.CUSTOMER for m in out)    # customer told they're back
+    assert E.RETURNED_TO_AGENT.value in await _types(session)
+    # the next customer message is handled by the agent again
+    out = await sim.send(Role.CUSTOMER, "cust-sharma", text="not cooling")
+    assert any(m.role == Role.CUSTOMER for m in out)
+
+
 async def test_j12_roster_add_and_approve(session):
     await seed_demo(session)
     await session.commit()

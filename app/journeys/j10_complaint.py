@@ -55,6 +55,9 @@ async def talk_to_person(ctx: Ctx) -> None:
     job_id = ctx.conversation.active_job_id or "R-0000"
     await ctx.emit(E.HANDED_TO_PERSON, actor="agent", job_id=job_id, payload={})
     await M.take_over(ctx.session, job_id, by=AREA)
+    # pin the thread to this job so the take-over gate (router) silences the agent
+    # even when there is no real job yet (e.g. "talk to a person" as a first message)
+    ctx.set_active_job(job_id)
     ctx.say("A person from the resQ desk will reply in 5 minutes.")
     # the desk sees the full thread (no repeating the story)
     ctx.to(AREA, Role.AREA,

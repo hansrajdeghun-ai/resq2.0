@@ -149,5 +149,7 @@ document.getElementById("reset").onclick = async () => {
   catch { document.getElementById("conn").style.color = "var(--bad)"; }
   try { await api("/api/seed", { method: "POST" }); } catch {}
   await pollAll(); refreshRail();
-  setInterval(() => { pollAll(); refreshRail(); }, 3000);
+  // poll only the phone chats (message delivery); the event-log rail refreshes
+  // when a message is sent, not on a timer — no auto-refresh of the listing.
+  setInterval(() => { pollAll(); }, 3000);
 })();

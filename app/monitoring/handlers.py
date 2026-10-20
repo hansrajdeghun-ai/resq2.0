@@ -5,8 +5,12 @@ lane of every journey plus these replies are what the area manager sees.
 """
 from __future__ import annotations
 
+from sqlalchemy import select
+
+from app.domain import Role
 from app.engine.context import Ctx
 from app.engine.router import on
+from app.models.ops import Conversation
 from app.monitoring import service as M
 
 
@@ -33,6 +37,14 @@ async def take_over(ctx: Ctx) -> None:
 async def hand_back(ctx: Ctx) -> None:
     job_id = ctx.intent.split(":", 1)[1] if ":" in ctx.intent else ""
     await M.hand_back(ctx.session, job_id)
+    # tell the customer(s) on this thread the assistant is back, and un-pin the
+    # (possibly placeholder) job so their next message routes to a fresh journey
+    convs = (await ctx.session.scalars(
+        select(Conversation).where(Conversation.active_job_id == job_id))).all()
+    for c in convs:
+        ctx.to(c.customer_id, Role.CUSTOMER,
+               "You're back with the resQ assistant 🤖\nHow can I help?")
+        c.active_job_id = None
     ctx.say(f"{job_id} handed back to the agent.")
 
 

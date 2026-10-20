@@ -280,5 +280,7 @@ function setupChat() {
   try { await api("/health"); document.getElementById("conn").style.color = "var(--accent)"; } catch {}
   await pollInbox();
   showSec((SECTIONS[ROLE] || SECTIONS.owner)[0][0]);  // default to Overview
-  setInterval(() => { pollInbox(); if (currentSec !== "chat") renderPanel(currentSec); }, 3000);
+  // poll only the chat inbox (cross-page message delivery); panels refresh on
+  // navigation/action, not on a timer — no auto-refresh of listings.
+  setInterval(() => { pollInbox(); }, 3000);
 })();
