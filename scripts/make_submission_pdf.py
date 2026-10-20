@@ -206,44 +206,71 @@ JOURNEYS = [
 ]
 
 
-def bubbles_html(msgs: list[dict]) -> str:
-    rows = []
-    for m in msgs:
-        cls = "out" if m["role"] == "self" else "in"
-        btns = "".join(f"<span class='chip'>{html.escape(b['title'])}</span>" for b in m.get("buttons", []))
-        rows.append(f"<div class='b {cls}'>{html.escape(m['text'])}{('<div class=bb>' + btns + '</div>') if btns else ''}</div>")
-    return "".join(rows) or "<div class='muted'>—</div>"
+import base64
+
+EXPAND_CSS = """
+  .phone,.phone.solo{height:auto!important}
+  .chat{max-height:none!important;height:auto!important;overflow:visible!important}
+  .topbar{position:static!important}
+  .phones{align-items:start!important}"""
 
 
-async def capture(c, code, title, summary):
-    ids = [p for p in DEFAULT_IDS if p in _participants] + \
-          [p for p in sorted(_participants) if p not in DEFAULT_IDS]
-    cols = []
-    for pid in ids:
+async def capture(c, pg, code, title, summary):
+    # real screenshot of the deployed 4-phone screen (expanded so nothing is clipped)
+    await pg.goto(f"{BASE}/demo", wait_until="networkidle")
+    await pg.wait_for_timeout(4000)                 # let all four inboxes poll in
+    await pg.add_style_tag(content=EXPAND_CSS)
+    await pg.wait_for_timeout(500)
+    png = await pg.screenshot(full_page=True)
+    ev = (await c.get("/api/events?limit=80")).json()["events"]
+    # also grab any non-demo participant threads (store/delivery/finance/new tech) as real
+    # screenshots of their own role page, so every message is pictured
+    extra_imgs = []
+    extras = [p for p in sorted(_participants) if p not in DEFAULT_IDS]
+    for pid in extras:
         msgs = (await c.get(f"/api/inbox/{pid}")).json()["messages"]
         if not msgs:
             continue
-        cols.append(f"<div class='col'><div class='colhead'>{html.escape(label(pid))}</div>"
-                    f"<div class='chat'>{bubbles_html(msgs)}</div></div>")
-    ev = (await c.get("/api/events?limit=80")).json()["events"]
-    trail = " · ".join(e["type"] for e in ev)
+        role = {"store-1": "field", "bench-1": "field", "driver-1": "field",
+                "owner-a": "owner", "owner-b": "owner", "finance-1": "area",
+                "T-field-sunil": "field"}.get(pid, "field")
+        try:
+            await pg.add_init_script(
+                f"localStorage.setItem('resq_persona_{role}', "
+                f"JSON.stringify({{id:'{pid}',name:'{label(pid)}'}}))")
+            await pg.goto(f"{BASE}/{role}", wait_until="networkidle")
+            await pg.wait_for_timeout(2500)
+            # open the Chat section if present
+            await pg.evaluate("(document.querySelector('#viewnav a[data-sec=\"chat\"]')||{click(){}}).click()")
+            await pg.wait_for_timeout(1500)
+            await pg.add_style_tag(content=EXPAND_CSS)
+            el = await pg.query_selector("#sec-chat") or await pg.query_selector(".content")
+            shot = await (el.screenshot() if el else pg.screenshot(full_page=True))
+            extra_imgs.append({"label": label(pid), "img": base64.b64encode(shot).decode()})
+        except Exception as e:  # noqa: BLE001
+            print(f"   (extra {pid} skipped: {e})")
     SECTIONS.append({"code": code, "title": title, "summary": summary,
-                     "cols": "".join(cols), "trail": trail})
-    print(f"captured {code} — {len(cols)} threads, {len(ev)} events")
+                     "img": base64.b64encode(png).decode(), "extra": extra_imgs,
+                     "trail": " · ".join(e["type"] for e in ev)})
+    print(f"captured {code} — demo shot + {len(extra_imgs)} extra threads, {len(ev)} events")
 
 
 def build_html() -> str:
     body = []
     for s in SECTIONS:
+        extras = "".join(
+            f"<div class='extra'><div class='exlabel'>{html.escape(e['label'])}</div>"
+            f"<img src='data:image/png;base64,{e['img']}'/></div>" for e in s.get("extra", []))
         body.append(f"""
         <section class="j">
           <h2>{html.escape(s['code'])} · {html.escape(s['title'])}</h2>
           <p class="sum">{html.escape(s['summary'])}</p>
-          <div class="cols">{s['cols']}</div>
+          <img class="shot" src="data:image/png;base64,{s['img']}"/>
+          {extras}
           <p class="trail"><b>Append-only event trail:</b> {html.escape(s['trail'])}</p>
         </section>""")
     return f"""<!doctype html><html><head><meta charset="utf-8"><style>
-      @page {{ margin: 14mm; }}
+      @page {{ margin: 12mm; }}
       body {{ font-family: -apple-system,'Segoe UI',Roboto,sans-serif; color:#0E2440; }}
       .cover {{ text-align:center; padding:70mm 0; page-break-after:always; }}
       .cover h1 {{ font-size:46px; margin:0; letter-spacing:-2px; }}
@@ -253,19 +280,12 @@ def build_html() -> str:
       section.j {{ page-break-after:always; }}
       h2 {{ font-size:19px; border-bottom:2px solid #E8820E; padding-bottom:6px; }}
       .sum {{ color:#4A5A72; font-size:12.5px; margin:6px 0 12px; }}
-      .cols {{ display:flex; gap:10px; align-items:flex-start; }}
-      .col {{ flex:1; min-width:0; border:1px solid #DBE2EA; border-radius:10px; overflow:hidden; }}
-      .colhead {{ background:#0E2440; color:#fff; font-size:11px; font-weight:600; padding:7px 9px; }}
-      .chat {{ background:#eef1f5; padding:9px; display:flex; flex-direction:column; gap:6px; }}
-      .b {{ font-size:10.5px; line-height:1.35; padding:6px 8px; border-radius:9px; white-space:pre-wrap;
-            max-width:90%; }}
-      .b.in {{ background:#fff; align-self:flex-start; border:1px solid #e4e9f0; }}
-      .b.out {{ background:#E6F5EC; align-self:flex-end; color:#0c3a27; }}
-      .bb {{ margin-top:4px; display:flex; flex-wrap:wrap; gap:3px; }}
-      .chip {{ font-size:9px; border:1px solid #c7d3ff; color:#2743a0; border-radius:10px; padding:1px 5px; }}
+      img.shot {{ width:100%; border:1px solid #DBE2EA; border-radius:10px; }}
+      .extra {{ margin-top:12px; }}
+      .exlabel {{ font-size:11px; font-weight:600; color:#4A5A72; margin-bottom:4px; }}
+      .extra img {{ width:60%; border:1px solid #DBE2EA; border-radius:10px; }}
       .trail {{ font-family:ui-monospace,Menlo,monospace; font-size:9px; color:#4A5A72;
                 background:#F4F6F9; padding:8px 10px; border-radius:8px; word-break:break-word; margin-top:12px; }}
-      .muted {{ color:#8795A8; font-size:11px; padding:10px; }}
     </style></head><body>
       <div class="cover">
         <h1>resQ<span class="dot">2.0</span></h1>
@@ -281,18 +301,19 @@ def build_html() -> str:
 
 async def main():
     async with httpx.AsyncClient(base_url=BASE, timeout=90) as c, async_playwright() as p:
+        b = await p.chromium.launch()
+        pg = await b.new_page(viewport={"width": 1500, "height": 1000}, device_scale_factor=2)
         for code, title, summary, runner in JOURNEYS:
             _participants.clear()
             try:
                 await c.post("/api/reset")               # reset the demo before each journey
                 await runner(c)
-                await capture(c, code, title, summary)
+                await capture(c, pg, code, title, summary)
             except Exception as e:  # noqa: BLE001
                 print(f"!! {code} failed: {e}")
-        b = await p.chromium.launch()
-        pg = await b.new_page()
-        await pg.set_content(build_html(), wait_until="networkidle")
-        await pg.pdf(path=OUT, format="A4", print_background=True)
+        report = await b.new_page()
+        await report.set_content(build_html(), wait_until="networkidle")
+        await report.pdf(path=OUT, format="A4", print_background=True)
         await b.close()
     print(f"\nWrote {OUT} ({len(SECTIONS)} sections)")
 
